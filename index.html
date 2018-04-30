@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <script src="https://www.gstatic.com/firebasejs/4.13.0/firebase.js"></script>
+   <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+   <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA_F4ONpjjvDzRetdj6XZ3UfgjWtY5qU_o&callback=initMap" async defer></script>
+   <link rel="stylesheet" type="text/css" href="/sdy60ge5/css/style.css">
+
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Johnnie the Pezikarios [AKA footSoldier] </title>
+    <style>
+    
+    </style>
+  </head>
+  <body onload="setUsername()">
+    
+    <div id="map" class = "split left"></div>
+
+	<div id="mmenu" class = "split right">
+	
+	<div id = "higher"> </div>
+
+	<span id = "latlng">Current POI: Unavailable</span>
+	
+		
+	
+	<br>
+	<div id = "txt1">
+	<center>Mobility Type</center>
+	</div>
+	<button type="button" class="myButton" style="width:6.66%" onclick="setMode('walker')">WALK</button> 
+	<button type="button" class="myButton" style="width:6.66%" onclick="setMode('bicycle')">BICYLCLE</button> 
+	<button type="button" class="myButton" style="width:6.66%" onclick="setMode('disabled')">DISABILITY</button> 
+	<br>
+	<div id = "txt2">
+	<center>Accessibility Level</center>
+	</div>
+	<button type="button" class="myButton" style="width:6.66%" onclick="setAccess('good')">GOOD</button> 
+	<button type="button" class="myButton" style="width:6.66%" onclick="setAccess('average')">AVERAGE</button> 
+	<button type="button" class="myButton" style="width:6.66%" onclick="setAccess('bad')">BAD</button> 
+	<br>
+	<button type="button" class="myButton2" style="width:20%" onclick="submitPath('good')">Submit Collected Path</button> 
+	
+	
+	
+	    <div id = "lower">
+	
+	
+	
+	    </div>
+	</div>
+	
+
+	
+	
+	
+
+    <script>
+
+      // This example creates an interactive map which constructs a polyline based on
+      // user clicks. Note that the polyline only appears once its path property
+      // contains two LatLng coordinates.
+
+      var markerList = [];
+	  var score = 0;
+	  var gain = 50;
+	  var recordedPath = [];
+	  var username = 'AnomymousUser';
+	  var poly;
+      var map;
+	  var mode = 'walker';
+	  var access = 'good';
+	  var path;
+	  var point = {
+		accessibility: 'good',
+		comments: '',
+		gnssAccuracy: 'unavailable-Desktop',
+		lat: '0.0',
+		lon: '0.0',
+		mobility: 'walker',
+		speed: 'unavailable-Desktop',
+		type:  'normal'
+	  }
+	  
+	  var config = {
+		apiKey: "AIzaSyAQadwizT-xkkqeJQxIsegO4fJ74CayzbI",
+		authDomain: "keepwalking-68a3f.firebaseapp.com",
+		databaseURL: "https://keepwalking-68a3f.firebaseio.com",
+		projectId: "keepwalking-68a3f",
+		storageBucket: "keepwalking-68a3f.appspot.com",
+		messagingSenderId: "826805306971"
+	  };
+
+	 firebase.initializeApp(config);
+	  
+	  function updateScore(){
+	  score =  score + gain;
+	  
+	  }
+	  
+	  setMode(mode);
+	  setAccess(access);
+
+	  function submitPath(){
+	  //alert(JSON.stringify(recordedPath));
+	  var myRef = firebase.database().ref(username);
+	  myRef = myRef.child("path-Desktop-" + crypto.getRandomValues(new Uint32Array(4)).join('-'));
+	  myRef.set(recordedPath);
+	  score = 0;
+	  document.getElementById('higher').innerHTML = "User: " + username
+	  + "<br>" + "Score: " + score;
+	  recordedPath = [];
+	  poly.setMap(null);
+	  clearMarkers();
+	  poly = new google.maps.Polyline({
+          strokeColor: 'red',
+          strokeOpacity: 1.0,
+          strokeWeight: 3
+        });
+      poly.setMap(map);
+	  alert("Path Submitted...");
+	  }
+	  
+	  function setUsername(){
+	  var msg = window.prompt("Please Enter Your Username","AnonymousUser");
+	  username = msg;
+	  document.getElementById('higher').innerHTML = "User: " + username
+	  + "<br>" + "Score: " + score;
+	  }
+	  
+	  function setMode(type){
+	  mode = type;
+	  document.getElementById('lower').innerHTML = "Current User Mobility Selected: " + mode
+		+ "<br>" + "Current Accessibility Level: " + access + "<br>";
+	  }
+
+	  function setAccess(type){
+	  access = type;
+	  document.getElementById('lower').innerHTML = "Current User Mobility Selected: " + mode
+		+ "<br>" + "Current Accessibility Level: " + access + "<br>";
+	  }
+	  
+      function initMap() {
+
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: 38.62139, lng: 21.40778},
+          zoom: 18,
+		  panControl: true, //enable pan Control
+		  zoomControl: true, //enable zoom control
+		  zoomControlOptions: {
+		  style: google.maps.ZoomControlStyle.SMALL //zoom control size
+		  },
+		  scaleControl: true, // enable scale control
+		  mapTypeId: google.maps.MapTypeId.HYBRID // google map type
+        });
+
+        poly = new google.maps.Polyline({
+          strokeColor: 'red',
+          strokeOpacity: 1.0,
+          strokeWeight: 3
+        });
+        poly.setMap(map);
+
+        // Add a listener for the click event
+        map.addListener('click', addLatLng);
+		map.addListener('rightclick', addPOI);	
+      }
+
+      // Handles click events on a map, and adds a new point to the Polyline.
+      function addLatLng(event) {
+        var path = poly.getPath();
+
+        // Because path is an MVCArray, we can simply append a new coordinate
+        // and it will automatically appear.
+        path.push(event.latLng);
+
+        // Add a new marker at the new plotted point on the polyline.
+        var marker = new google.maps.Marker({
+          position: event.latLng,
+          title: '#' + path.getLength(),
+          map: map
+        });
+		markerList.push(marker);
+		var point2 = cloneObj(point);
+		point2.accessibility = 'good';
+		point2.comments = '';
+		point2.gnssAccuracy = 'unavailable-Desktop';
+		point2.lat = event.latLng.lat();
+		point2.lon = event.latLng.lng();
+		point2.mobility = mode;
+		point2.speed = 'unavailable-Desktop';
+		point2.type =  'normal';
+        recordedPath.push(point2);
+		
+      }
+	  
+	  function addPOI(event) {
+	    var confirm1 = confirm("Do you really Want to Set this point as " + mode + " POI with " + access + " accessibility?");
+		if(confirm1 == true){
+		var msg = window.prompt("Add Comment For this POI","...");
+		var path = poly.getPath();
+		path.push(event.latLng);
+		document.getElementById('latlng').innerHTML = "Last POI Location:<br> " + "  " + event.latLng
+		+ "<br>  Comment:<br>" + msg;
+        var marker = new google.maps.Marker({
+          position: event.latLng,
+		  label: {
+			color: 'white',
+			fontWeight: 'bold',
+			text: msg,
+            },
+			icon: {
+				labelOrigin: new google.maps.Point(11, 50),
+				url: '/sdy60ge5/img/poi.png',
+				size: new google.maps.Size(28, 42),
+				origin: new google.maps.Point(0, 0),
+				anchor: new google.maps.Point(11, 40),
+				},
+          map: map
+        });
+		markerList.push(marker);
+		var point1 = cloneObj(point);
+	    point1.accessibility = access;
+		point1.comments = msg;
+		point1.gnssAccuracy = 'unavailable-Desktop';
+		point1.lat = event.latLng.lat();
+		point1.lon = event.latLng.lng();
+		point1.mobility = mode;
+		point1.speed = 'unavailable-Desktop';
+		point1.type = 'POI';
+        recordedPath.push(point1);	
+        score = score + gain;
+        document.getElementById('higher').innerHTML = "User: " + username
+	  + "<br>" + "Score: " + score;		
+		}
+	  }
+	  
+	  function cloneObj(obj) {
+		var clone ={};
+		for( var key in obj ){
+			if(obj.hasOwnProperty(key)) //ensure not adding inherited props
+				clone[key]=obj[key];
+			}
+		return clone;
+      }
+	  
+      function clearMarkers(){
+	  for (var i = 0; i < markerList.length; i++) {
+          markerList[i].setMap(null);
+        }
+	  markerList = [];
+	  }
+	  
+
+	  
+    </script>
+  </body>
+</html>
